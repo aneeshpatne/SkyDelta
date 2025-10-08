@@ -9,7 +9,7 @@ const data = await res.json();
 const record = await prisma.weather_db.create({
   data: {
     temperature: data.temp_c,
-    humidity: humidity_pct,
+    humidity: data.humidity_pct,
   },
 });
 
