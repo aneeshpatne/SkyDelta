@@ -1,11 +1,24 @@
-import cron from "node-cron";
 import { PrismaClient } from "@prisma/client";
 
-const prisma = new PrismaClient();
+let isRunning = false;
 
 async function fetchAndStore() {
+  if (isRunning) {
+    console.log(
+      `[${new Date().toISOString()}] Skipping - previous task still running`
+    );
+    return;
+  }
+
+  isRunning = true;
+  const startTime = Date.now();
+  const prisma = new PrismaClient();
+
   try {
-    const res = await fetch("http://192.168.1.50/sensors_v2");
+    const res = await fetch("http://192.168.1.50/sensors_v2", {
+      signal: AbortSignal.timeout(30000),
+    });
+
     if (!res.ok) {
       throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`);
     }
@@ -22,23 +35,40 @@ async function fetchAndStore() {
       },
     });
 
-    console.log(`[${new Date().toISOString()}] Inserted:`, record);
+    const duration = Date.now() - startTime;
+    console.log(
+      `[${new Date().toISOString()}] Inserted (${duration}ms):`,
+      record
+    );
   } catch (err) {
-    console.error(`[${new Date().toISOString()}] Error:`, err);
+    const duration = Date.now() - startTime;
+    console.error(
+      `[${new Date().toISOString()}] Error (${duration}ms):`,
+      err.message
+    );
+  } finally {
+    await prisma.$disconnect();
+    isRunning = false;
   }
 }
 
-cron.schedule("* * * * *", () => {
-  console.log(`[${new Date().toISOString()}] Running scheduled task...`);
-  fetchAndStore();
-});
-
 fetchAndStore();
 
-console.log("Weather monitoring started. Will run every minute.");
+const interval = setInterval(fetchAndStore, 60000);
+
+console.log("Weather monitoring started. Will run every 60 seconds.");
 
 process.on("SIGINT", async () => {
   console.log("\nShutting down...");
-  await prisma.$disconnect();
+  clearInterval(interval);
+
+  while (isRunning) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
   process.exit(0);
+});
+
+process.on("unhandledRejection", (err) => {
+  console.error(`[${new Date().toISOString()}] Unhandled rejection:`, err);
 });
