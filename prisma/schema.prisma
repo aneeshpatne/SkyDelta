@@ -6,16 +6,15 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-model Weather_db{
+model weather_db{
    id          String   @id @default(uuid())
-   timestamp   DateTime @db.Timestamptz(6)
-   temprature Float
-   humidity Float 
+   timestamp   DateTime @default(now()) @db.Timestamptz(6)
+   temperature  Float
+   humidity    Float 
 }
