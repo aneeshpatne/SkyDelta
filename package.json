@@ -1,6 +1,7 @@
 {
   "name": "skydelta",
   "version": "1.0.0",
+  "type": "module",
   "description": "",
   "main": "index.js",
   "scripts": {
@@ -21,6 +22,7 @@
     "prisma": "^6.17.0"
   },
   "dependencies": {
-    "@prisma/client": "^6.17.0"
+    "@prisma/client": "^6.17.0",
+    "express": "^5.1.0"
   }
 }
