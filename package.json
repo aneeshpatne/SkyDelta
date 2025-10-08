@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/aneeshpatne/SkyDelta/issues"
   },
-  "homepage": "https://github.com/aneeshpatne/SkyDelta#readme"
+  "homepage": "https://github.com/aneeshpatne/SkyDelta#readme",
+  "devDependencies": {
+    "prisma": "^6.17.0"
+  }
 }
