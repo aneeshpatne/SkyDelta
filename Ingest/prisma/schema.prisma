@@ -6,19 +6,10 @@
 
 generator client {
   provider = "prisma-client-js"
-}
-
-generator py {
-  provider = "prisma-client-py"
+  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-model weather_db{
-   id          String   @id @default(uuid())
-   timestamp   DateTime @default(now()) @db.Timestamptz(6)
-   temperature  Float
-   humidity    Float 
 }
