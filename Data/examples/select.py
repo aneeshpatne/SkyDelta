@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+# Add the parent directory to Python path to import generated prisma client
+sys.path.insert(0, str(Path(__file__).parent.parent / "generated"))
+
 from prisma import Prisma
 import asyncio
 from dotenv import load_dotenv
