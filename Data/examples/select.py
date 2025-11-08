@@ -1,6 +1,11 @@
 from prisma import Prisma
 import asyncio
+from dotenv import load_dotenv
+import os
 
+# Load environment variables from parent directory's .env file
+env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+load_dotenv(dotenv_path=env_path)
 
 db = Prisma()
 
