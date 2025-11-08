@@ -14,6 +14,7 @@ async function fetchAndStore() {
         humidity: data.humidity_pct,
       },
     });
+    console.info("[FETCH] Data Logged");
   } catch (e) {
     console.error("[FETCH] Fetching Failed", e);
   }
