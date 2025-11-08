@@ -11,10 +11,11 @@ async function fetchAndStore() {
       signal: AbortSignal.timeout(2000),
     });
     const data = await res.json();
-    const entry = await prisma.weather_db.create({
+    const entry = await prisma.weather_db_v2.create({
       data: {
         temperature: data.temp_c,
         humidity: data.humidity_pct,
+        pressure: data.pressure_hpa,
       },
     });
     console.info("[FETCH] Data Logged");

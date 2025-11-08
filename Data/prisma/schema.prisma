@@ -5,7 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-py"
   output   = "../generated/prisma"
 }
 
@@ -19,4 +19,12 @@ model weather_db{
    timestamp   DateTime @default(now()) @db.Timestamptz(6)
    temperature  Float
    humidity    Float 
+}
+
+model weather_db_v2{
+   id          String   @id @default(uuid())
+   timestamp   DateTime @default(now()) @db.Timestamptz(6)
+   temperature  Float
+   humidity    Float
+   pressure    Float
 }

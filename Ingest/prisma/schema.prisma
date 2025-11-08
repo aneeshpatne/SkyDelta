@@ -18,3 +18,11 @@ model weather_db{
    temperature  Float
    humidity    Float 
 }
+
+model weather_db_v2{
+   id          String   @id @default(uuid())
+   timestamp   DateTime @default(now()) @db.Timestamptz(6)
+   temperature  Float
+   humidity    Float
+   pressure    Float
+}
