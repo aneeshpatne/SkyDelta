@@ -40,9 +40,9 @@ async def get_hourly_average(data):
     avg = defaultdict(lambda : {"temp" :[], "humidity":[], "pressure": []})
     for d in data:
         hour = d.get('timestamp').hour
-        avg[hour]["temp"] = d.get("temperature")
-        avg[hour]["humidity"] = d.get("humidity")
-        avg[hour]["pressure"] = d.get("pressure")
+        avg[hour]["temp"] = d["temperature"]
+        avg[hour]["humidity"] = d["humidity"]
+        avg[hour]["pressure"] = d["pressure"]
     hourly_avg = {}
     for hour in range(24):
         if hour in avg and avg[hour]["temp"]:
