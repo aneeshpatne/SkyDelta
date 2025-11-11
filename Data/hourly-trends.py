@@ -59,6 +59,24 @@ def fetch_data():
     data = requests.get("http://192.168.1.50/sensors_v2", timeout=2)
     return data.json()
 
+def calcn_change(data_now, avg):
+    h = datetime.now().hour
+    change_temp = data_now.get('temp_c') - avg[h]["avg_temp"]
+    percent_change_temp = change_temp / avg[h]["avg_temp"] * 100
+    change_humi = data_now.get('humidity') - avg[h]["avg_humidity"]
+    percent_change_humi = change_humi / avg[h]["avg_humidity"] * 100
+    change_pressure = data_now.get('pressure') - avg[h]["avg_pressure"]
+    percent_change_pressure = change_pressure / avg[h]["avg_pressure"] * 100
+    
+    return {
+        'temp_change': change_temp,
+        'temp_percent_change': percent_change_temp,
+        'humidity_change': change_humi,
+        'humidity_percent_change': percent_change_humi,
+        'pressure_change': change_pressure,
+        'pressure_percent_change': percent_change_pressure
+    }
+    
 
 async def main():
     data = await load_last_30_days_data()
@@ -66,5 +84,7 @@ async def main():
     logging.info(avg)
     data_now = fetch_data()
     logging.info(data_now)
+    changes = calcn_change(data_now, avg)
+    logging.info(changes)
 
 asyncio.run(main())
