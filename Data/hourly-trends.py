@@ -39,10 +39,10 @@ async def load_last_30_days_data():
 async def get_hourly_average(data):
     avg = defaultdict(lambda : {"temp" :[], "humidity":[], "pressure": []})
     for d in data:
-        hour = d.get('timestamp').hour
-        avg[hour]["temp"] = d["temperature"]
-        avg[hour]["humidity"] = d["humidity"]
-        avg[hour]["pressure"] = d["pressure"]
+        hour = d.timestamp.hour
+        avg[hour]["temp"].append(d.temperature)
+        avg[hour]["humidity"].append(d.humidity)
+        avg[hour]["pressure"].append(d.pressure)
     hourly_avg = {}
     for hour in range(24):
         if hour in avg and avg[hour]["temp"]:
