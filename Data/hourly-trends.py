@@ -11,7 +11,6 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
 
-logging.basicConfig(level=logging.INFO)
 
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 
@@ -22,7 +21,7 @@ db = Prisma()
 async def load_last_30_days_data():
     await db.connect()
     delta = datetime.now() - timedelta(days= 30)
-    logging.info(f"[FETCH] Fetching Data from {delta.date()} to {datetime.now().date()}")
+    logging.info(f"Fetching Data from {delta.date} to {datetime.now().date()}")
     data = await db.weather_db_v2.find_many(
         where={
             'timestamp':{
@@ -33,11 +32,31 @@ async def load_last_30_days_data():
             'timestamp': 'asc'
         }
     )
-    logging.info(f"[FETCH] Retrived Data: {len(data)}")
+    logging.info(f"Retrived Data: {len(data)}")
+    return data
 
+
+async def get_hourly_average(data):
+    avg = defaultdict(lambda : {"temp" :[], "humidity":[], "pressure": []})
+    for d in data:
+        hour = data.get('timestamp').hour
+        avg[hour]["temp"] = data.get("temperature")
+        avg[hour]["humidity"] = data.get("humidity")
+        avg[hour]["pressure"] = data.get("pressure")
+    hourly_avg = {}
+    for hour in range(24):
+        if hour in avg and avg[hour]["temp"]:
+            hourly_avg[hour] = {
+                "avg_temp" : sum(avg[hour]["temp"]) / len(avg[hour]["temp"]),
+                "avg_humidity" :sum(avg[hour]["humidity"]) / len(avg[hour]["humidity"]),
+                "avg_pressure" : sum(avg[hour]["pressure"]) / len(avg[hour]["pressure"]),
+            }
+    return hourly_avg
 
 
 async def main():
-    await load_last_30_days_data()
+    data = await load_last_30_days_data()
+    avg = await get_hourly_average(data)
+    logging.info(avg)
 
 asyncio.run(main())
