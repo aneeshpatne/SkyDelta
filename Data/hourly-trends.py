@@ -12,6 +12,8 @@ from collections import defaultdict
 import logging
 import requests
 
+logging.basicConfig(level=logging.INFO)
+
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 
 load_dotenv(dotenv_path=env_path)
@@ -55,13 +57,14 @@ async def get_hourly_average(data):
 
 def fetch_data():
     data = requests.get("http://192.168.1.50/sensors_v2", timeout=2)
-    return data
+    return data.json()
 
 
 async def main():
     data = await load_last_30_days_data()
     avg = await get_hourly_average(data)
     logging.info(avg)
-    fetch_data()
+    data_now = fetch_data()
+    logging.info(data_now)
 
 asyncio.run(main())
