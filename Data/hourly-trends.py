@@ -33,3 +33,8 @@ async def load_last_30_days_data():
         }
     )
     logging.info(f"Retrived Data: {len(data)}")
+
+async def main():
+    await load_last_30_days_data()
+
+asyncio.run(main())
