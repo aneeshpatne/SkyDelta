@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
 
+logging.basicConfig(level=logging.INFO)
 
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 
@@ -21,7 +22,7 @@ db = Prisma()
 async def load_last_30_days_data():
     await db.connect()
     delta = datetime.now() - timedelta(days= 30)
-    logging.info(f"Fetching Data from {delta.date} to {datetime.now().date()}")
+    logging.info(f"[FETCH] Fetching Data from {delta.date()} to {datetime.now().date()}")
     data = await db.weather_db_v2.find_many(
         where={
             'timestamp':{
@@ -32,7 +33,7 @@ async def load_last_30_days_data():
             'timestamp': 'asc'
         }
     )
-    logging.info(f"Retrived Data: {len(data)}")
+    logging.info(f"[FETCH] Retrived Data: {len(data)}")
 
 async def main():
     await load_last_30_days_data()
