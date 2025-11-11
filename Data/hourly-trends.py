@@ -20,7 +20,7 @@ db = Prisma()
 
 async def load_last_30_days_data():
     await db.connect()
-    delta = datetime.now() - timedelta()
+    delta = datetime.now() - timedelta(days= 30)
     logging.info(f"Fetching Data from {delta.date} to {datetime.now().date()}")
     data = await db.weather_db_v2.find_many(
         where={
