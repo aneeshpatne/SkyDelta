@@ -10,7 +10,7 @@ import os
 from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
-
+import requests
 
 env_path = os.path.join(os.path.dirname(__file__), '.env')
 
@@ -53,10 +53,15 @@ async def get_hourly_average(data):
             }
     return hourly_avg
 
+def fetch_data():
+    data = requests.get("http://192.168.1.50/sensors_v2", timeout=2)
+    return data
+
 
 async def main():
     data = await load_last_30_days_data()
     avg = await get_hourly_average(data)
     logging.info(avg)
+    fetch_data()
 
 asyncio.run(main())
