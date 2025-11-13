@@ -1,4 +1,15 @@
+import "dotenv/config";
 import { Queue, Worker } from "bullmq";
+import { createClient } from "redis";
+import { openai } from "@ai-sdk/openai";
+import { generateObject } from "ai";
+import { z } from "zod";
+
+const client = createClient();
+
+client.on("error", (err) => console.error("Redis Client Error", err));
+
+await client.connect();
 
 const connection = { host: "127.0.0.1", port: 6379 };
 
@@ -15,7 +26,10 @@ console.log("Concurrent Task Added In queue");
 const worker = new Worker(
   "myQueue",
   async (job) => {
-    console.log("Job Started Executing");
+    const value = await client.get("changes");
+    const Changes = JSON.parse(value);
+    const res = await fetch("http://192.168.1.50/sensors_v2");
+    const curData = await res.json();
   },
   { connection }
 );
