@@ -61,12 +61,21 @@ def fetch_data():
 
 def calcn_change(data_now, avg):
     h = datetime.now().hour
-    change_temp = data_now.get('temp_c') - avg[h]["avg_temp"]
-    percent_change_temp = change_temp / avg[h]["avg_temp"] * 100
-    change_humi = data_now.get('humidity') - avg[h]["avg_humidity"]
-    percent_change_humi = change_humi / avg[h]["avg_humidity"] * 100
-    change_pressure = data_now.get('pressure') - avg[h]["avg_pressure"]
-    percent_change_pressure = change_pressure / avg[h]["avg_pressure"] * 100
+    temp_now = data_now.get('temp_c')
+    humi_now = data_now.get('humidity')
+    press_now = data_now.get('pressure')
+    
+    if h not in avg:
+        return None  # or handle appropriately
+    
+    change_temp = (temp_now - avg[h]["avg_temp"]) if temp_now is not None else None
+    percent_change_temp = (change_temp / avg[h]["avg_temp"] * 100) if change_temp is not None else None
+    
+    change_humi = (humi_now - avg[h]["avg_humidity"]) if humi_now is not None else None
+    percent_change_humi = (change_humi / avg[h]["avg_humidity"] * 100) if change_humi is not None else None
+    
+    change_pressure = (press_now - avg[h]["avg_pressure"]) if press_now is not None else None
+    percent_change_pressure = (change_pressure / avg[h]["avg_pressure"] * 100) if change_pressure is not None else None
     
     return {
         'temp_change': change_temp,
