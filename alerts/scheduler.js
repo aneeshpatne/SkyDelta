@@ -16,13 +16,9 @@ const connection = { host: "127.0.0.1", port: 6379 };
 
 const queue = new Queue("myQueue", { connection });
 
-await queue.add("myTask", {}, { repeat: { cron: "15 7 * * *" } });
+await queue.add("myTask", {}, { repeat: { cron: "20 7-22 * * *" } });
 
-console.log("Inital Task Added In queue");
-
-await queue.add("myTask", {}, { repeat: { cron: "0 8-10 * * *" } });
-
-console.log("Concurrent Task Added In queue");
+console.log("Task Added In queue");
 
 // await queue.add("myTask", {});
 
