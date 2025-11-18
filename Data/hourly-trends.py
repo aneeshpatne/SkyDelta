@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 import logging
 import requests
+import json
+from redis.asyncio import Redis
 
 logging.basicConfig(level=logging.INFO)
 
@@ -95,5 +97,30 @@ async def main():
     logging.info(data_now)
     changes = calcn_change(data_now, avg)
     logging.info(changes)
+
+    # Write changes into Redis as a JSON string so other services (e.g. alerts/scheduler.js)
+    # can read the same 'changes' key. Round numeric values to 2 decimals and keep None
+    # as null (JSON) to match the format shown in Redis.
+    if changes is not None:
+        r = Redis(host="127.0.0.1", port=6379, decode_responses=True)
+
+        def _round_or_none(v):
+            if v is None:
+                return None
+            if isinstance(v, (int, float)):
+                try:
+                    return round(v, 2)
+                except Exception:
+                    return v
+            return v
+
+        formatted_changes = {k: _round_or_none(v) for k, v in changes.items()}
+        await r.set("changes", json.dumps(formatted_changes))
+        logging.info(f"Wrote changes to Redis: {formatted_changes}")
+        # Close the redis connection cleanly
+        try:
+            await r.close()
+        except Exception:
+            pass
 
 asyncio.run(main())
