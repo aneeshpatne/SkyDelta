@@ -16,16 +16,7 @@ const connection = { host: "127.0.0.1", port: 6379 };
 
 const queue = new Queue("myQueue", { connection });
 
-// Remove any pending/delayed jobs to ensure clean start (skip recurring jobs)
-const jobs = await queue.getJobs(["waiting", "delayed"]);
-for (const job of jobs) {
-  // Skip jobs that are part of a job scheduler (recurring jobs)
-  if (!job.repeatJobKey) {
-    await job.remove();
-  }
-}
-console.log("Old tasks removed");
-
+// Clean up any stray jobs from previous runs
 await queue.clean(0, "wait");
 await queue.clean(0, "delayed");
 await queue.clean(0, "active");
@@ -34,10 +25,10 @@ console.log("🧹 Cleaned up stray jobs from queue");
 // Remove any job scheduler definitions so stale schedules do not survive restarts
 const schedulers = await queue.getJobSchedulers();
 for (const scheduler of schedulers) {
-  if (!scheduler?.id) {
+  if (!scheduler?.key) {
     continue;
   }
-  await queue.removeJobScheduler(scheduler.id);
+  await queue.removeJobScheduler(scheduler.key);
   const scheduleLabel =
     scheduler.pattern ||
     (scheduler.every ? `${scheduler.every}ms interval` : "unknown cadence");
@@ -49,9 +40,30 @@ if (!schedulers.length) {
   console.log("♻️ No stale schedulers found");
 }
 
-await queue.add("myTask", {}, { repeat: { cron: "0 7-22 * * *" } });
+// Cron for 7am to 10pm
+const cronPattern = "0 7-22 * * *";
+await queue.add(
+  "myTask",
+  {},
+  {
+    repeat: {
+      pattern: cronPattern,
+    },
+  }
+);
 
-console.log("Task Added In queue");
+console.log("📅 Scheduled jobs: 7am to 10pm");
+console.log(`⏰ Cron pattern: "${cronPattern}"`);
+
+// Remove any pending/delayed jobs to ensure clean start (skip recurring jobs)
+const jobs = await queue.getJobs(["waiting", "delayed"]);
+for (const job of jobs) {
+  // Skip jobs that are part of a job scheduler (recurring jobs)
+  if (!job.repeatJobKey) {
+    await job.remove();
+  }
+}
+console.log("🧹 Cleaned up pending/delayed jobs from queue");
 
 // await queue.add("myTask", {});
 
