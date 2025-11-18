@@ -16,10 +16,13 @@ const connection = { host: "127.0.0.1", port: 6379 };
 
 const queue = new Queue("myQueue", { connection });
 
-// Remove all old tasks at initialization
-const jobSchedulers = await queue.getJobSchedulers();
-for (const scheduler of jobSchedulers) {
-  await queue.removeJobScheduler(scheduler.id);
+// Remove any pending/delayed jobs to ensure clean start (skip recurring jobs)
+const jobs = await queue.getJobs(["waiting", "delayed"]);
+for (const job of jobs) {
+  // Skip jobs that are part of a job scheduler (recurring jobs)
+  if (!job.repeatJobKey) {
+    await job.remove();
+  }
 }
 console.log("Old tasks removed");
 
