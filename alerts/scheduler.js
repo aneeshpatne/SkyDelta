@@ -16,7 +16,14 @@ const connection = { host: "127.0.0.1", port: 6379 };
 
 const queue = new Queue("myQueue", { connection });
 
-await queue.add("myTask", {}, { repeat: { cron: "22 7-22 * * *" } });
+// Remove all old tasks at initialization
+const rules = await queue.getRules();
+for (const rule of rules) {
+  await queue.removeRepeatableJob(rule);
+}
+console.log("Old tasks removed");
+
+await queue.add("myTask", {}, { repeat: { cron: "0 7-22 * * *" } });
 
 console.log("Task Added In queue");
 
