@@ -1,7 +1,9 @@
 import express from "express";
+import cors from "cors";
 import redis from "redis";
 
 const app = express();
+app.use(cors());
 const client = redis.createClient();
 
 client.connect();
