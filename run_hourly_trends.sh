@@ -1,3 +1,5 @@
-. .venv/bin/activate
-cd Data
-python hourly-trends.py
+#!/bin/bash
+
+. /home/aneesh/Desktop/Code/SkyDelta/.venv/bin/activate
+cd /home/aneesh/Desktop/Code/SkyDelta/Data
+python /home/aneesh/Desktop/Code/SkyDelta/Data/hourly-trends.py
