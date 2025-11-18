@@ -17,9 +17,9 @@ const connection = { host: "127.0.0.1", port: 6379 };
 const queue = new Queue("myQueue", { connection });
 
 // Remove all old tasks at initialization
-const rules = await queue.getRules();
-for (const rule of rules) {
-  await queue.removeRepeatableJob(rule);
+const jobSchedulers = await queue.getJobSchedulers();
+for (const scheduler of jobSchedulers) {
+  await queue.removeJobScheduler(scheduler.id);
 }
 console.log("Old tasks removed");
 
