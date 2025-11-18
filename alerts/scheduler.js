@@ -26,6 +26,29 @@ for (const job of jobs) {
 }
 console.log("Old tasks removed");
 
+await queue.clean(0, "wait");
+await queue.clean(0, "delayed");
+await queue.clean(0, "active");
+console.log("🧹 Cleaned up stray jobs from queue");
+
+// Remove any job scheduler definitions so stale schedules do not survive restarts
+const schedulers = await queue.getJobSchedulers();
+for (const scheduler of schedulers) {
+  if (!scheduler?.id) {
+    continue;
+  }
+  await queue.removeJobScheduler(scheduler.id);
+  const scheduleLabel =
+    scheduler.pattern ||
+    (scheduler.every ? `${scheduler.every}ms interval` : "unknown cadence");
+  console.log(
+    `♻️ Removed stale scheduler: ${scheduler.name} (${scheduleLabel})`
+  );
+}
+if (!schedulers.length) {
+  console.log("♻️ No stale schedulers found");
+}
+
 await queue.add("myTask", {}, { repeat: { cron: "0 7-22 * * *" } });
 
 console.log("Task Added In queue");
