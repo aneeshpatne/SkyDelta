@@ -116,7 +116,7 @@ def smooth_data(x, y, sigma=2):
             return x, y_filtered
     return x, y_filtered
 
-def get_trend_text(y_values, unit):
+def get_trend_text(y_values, unit, type_name):
     """Determine trend text based on first and last values"""
     if not len(y_values):
         return ""
@@ -133,27 +133,28 @@ def get_trend_text(y_values, unit):
     }
     thresh = thresholds.get(unit, 0.5)
     
+    status = ""
     if abs(diff) < thresh:
-        return f"Stable"
+        status = "Stable"
     elif diff > 0:
-        return f"Increased"
+        status = "Increased"
     else:
-        return f"Decreased"
+        status = "Decreased"
+        
+    return f"{status} {type_name}"
 
 def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time=True, 
                       overlay_x=None, overlay_y=None, overlay_label=None, extra_smooth=False,
-                      unit=""):
+                      unit="", type_name=""):
     """Create a smooth, centered plot with optional overlay, optimized for E-Paper"""
     if len(x_values) < 2:
         print(f"Not enough data points for {ylabel}")
         return
     
-    # E-Paper Resolution: 1072 x 1448
-    # Matplotlib uses inches. Let's assume 100 DPI for easy math, or just set figsize to match aspect ratio
-    # 1072 / 100 = 10.72 inches, 1448 / 100 = 14.48 inches
+    # E-Paper Resolution: 1448 x 1072 (Landscape)
     dpi = 100
-    fig_width = 1072 / dpi
-    fig_height = 1448 / dpi
+    fig_width = 1448 / dpi
+    fig_height = 1072 / dpi
     
     fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=dpi)
     
@@ -169,8 +170,6 @@ def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time
     x_smooth, y_smooth = smooth_data(x, y, sigma=sigma)
     
     # E-Paper Styling: High Contrast
-    # Main Line: Black
-    # Overlay Line: Dark Gray or Black (Dashed)
     
     if overlay_x is not None:
         # Main Line (Monthly Avg) - Dashed Dark Gray
@@ -193,7 +192,7 @@ def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time
         ax.legend(frameon=False, fontsize=24, loc='upper left')
         
         # Trend Annotation (Based on Monthly Avg - Main Line)
-        trend = get_trend_text(y_values, unit)
+        trend = get_trend_text(y_values, unit, type_name)
         if trend:
             # Add text to plot
             plt.text(0.5, 0.95, trend, transform=ax.transAxes, 
@@ -223,12 +222,10 @@ def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time
     y_margin = (y_max - y_min) * 0.2 if y_max != y_min else 1.0
     ax.set_ylim(y_min - y_margin, y_max + y_margin)
     
-    # Grid - Minimal or None for E-Paper? 
-    # User said "clean y labels", "no horizontal labels".
-    # Let's keep a very light grid for reference, but make it sparse.
+    # Grid
     ax.grid(True, alpha=0.2, linestyle=':', linewidth=1, color='black')
     
-    # Spines - Remove top/right, thicken left/bottom
+    # Spines
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['left'].set_linewidth(2)
@@ -237,11 +234,7 @@ def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time
     plt.tight_layout()
     
     output_path = os.path.join(output_dir, filename)
-    plt.savefig(output_path, dpi=dpi, bbox_inches='tight') # bbox_inches='tight' might change dimensions slightly, but keeps content.
-    # If exact 1072x1448 is STRICT, we should avoid bbox_inches='tight' and manually adjust subplot params.
-    # But usually 'tight' is safer for not cutting off large text.
-    # Let's try to respect the figure size.
-    
+    plt.savefig(output_path, dpi=dpi, bbox_inches='tight')
     plt.close()
     print(f"✓ Saved {filename}")
 
@@ -308,13 +301,16 @@ async def main():
             
             if plot_hours:
                 create_smooth_plot(plot_hours, avg_temps, 'Avg Temp (°C)', 'month_avg_temp.png', output_dir, 
-                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_temps, overlay_label='Today', unit='°C')
+                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_temps, overlay_label='Today', 
+                                 unit='°C', type_name='Temp')
                                  
                 create_smooth_plot(plot_hours, avg_humis, 'Avg Humidity (%)', 'month_avg_humi.png', output_dir, 
-                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_humis, overlay_label='Today', unit='%')
+                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_humis, overlay_label='Today', 
+                                 unit='%', type_name='Humidity')
                                  
                 create_smooth_plot(plot_hours, avg_press, 'Avg Pressure (hPa)', 'month_avg_pressure.png', output_dir, 
-                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_press, overlay_label='Today', unit='hPa')
+                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_press, overlay_label='Today', 
+                                 unit='hPa', type_name='Pressure')
             else:
                 print("No average data available for the target hours.")
         else:
