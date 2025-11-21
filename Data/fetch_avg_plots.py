@@ -12,6 +12,7 @@ import matplotlib.dates as mdates
 from datetime import datetime, timedelta, timezone
 import numpy as np
 from scipy.interpolate import make_interp_spline
+from scipy.ndimage import gaussian_filter1d
 from collections import defaultdict
 
 # Load environment variables
@@ -98,30 +99,76 @@ def get_hourly_average(data):
             }
     return hourly_avg
 
-def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time=True):
-    """Create a smooth, centered plot"""
+def smooth_data(x, y, sigma=2):
+    """Apply Gaussian smoothing and spline interpolation"""
+    # First apply Gaussian filter to reduce noise
+    y_filtered = gaussian_filter1d(y, sigma=sigma)
+    
+    # Then apply spline interpolation for visual smoothness
+    if len(x) >= 4:
+        x_smooth = np.linspace(x.min(), x.max(), 300)
+        try:
+            spl = make_interp_spline(x, y_filtered, k=3)
+            y_smooth = spl(x_smooth)
+            return x_smooth, y_smooth
+        except Exception as e:
+            print(f"Spline failed: {e}, returning filtered data")
+            return x, y_filtered
+    return x, y_filtered
+
+def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time=True, 
+                      overlay_x=None, overlay_y=None, overlay_label=None, extra_smooth=False):
+    """Create a smooth, centered plot with optional overlay"""
     if len(x_values) < 2:
         print(f"Not enough data points for {ylabel}")
         return
     
     fig, ax = plt.subplots(figsize=(12, 6))
     
+    # Prepare Main Data
     if is_time:
         x = mdates.date2num(x_values)
     else:
         x = np.array(x_values)
-        
     y = np.array(y_values)
     
-    # Smooth curve
-    if len(x) >= 4:
-        x_smooth = np.linspace(x.min(), x.max(), 300)
-        spl = make_interp_spline(x, y, k=min(3, len(x)-1))
-        y_smooth = spl(x_smooth)
-        ax.plot(x_smooth, y_smooth, linewidth=2.5, color='#2E86AB', alpha=0.9)
-    else:
-        ax.plot(x, y, linewidth=2.5, color='#2E86AB', alpha=0.9, marker='o')
+    # Plot Main Data (e.g., Monthly Avg or Today)
+    # If extra_smooth is True (for Today's graphs), use higher sigma
+    sigma = 5 if extra_smooth else 1
     
+    # If this is Monthly Avg (not time), we might not want too much smoothing on the few points we have
+    # But if it's Today's data (time), we want it "much much smoother"
+    
+    x_smooth, y_smooth = smooth_data(x, y, sigma=sigma)
+    
+    # Main line style
+    # If overlay exists, Main is likely the "Average", so make it distinct (maybe dashed or lighter?)
+    # User said "overlay the today humidity... on monthly avg". 
+    # So Main = Monthly Avg, Overlay = Today.
+    
+    if overlay_x is not None:
+        # Main Line (Monthly Avg) - Make it look like a baseline
+        ax.plot(x_smooth, y_smooth, linewidth=3, color='#A0A0A0', alpha=0.6, label='Monthly Avg')
+        
+        # Prepare Overlay Data (Today)
+        if is_time:
+             ox = mdates.date2num(overlay_x)
+        else:
+             ox = np.array(overlay_x)
+        oy = np.array(overlay_y)
+        
+        # Smooth Overlay Data
+        ox_smooth, oy_smooth = smooth_data(ox, oy, sigma=3) # Smooth today's data for overlay too
+        
+        # Plot Overlay Line (Today) - Make it pop
+        ax.plot(ox_smooth, oy_smooth, linewidth=3, color='#2E86AB', alpha=0.9, label='Today')
+        
+        ax.legend(frameon=False)
+        
+    else:
+        # Single Plot (Today's Trend)
+        ax.plot(x_smooth, y_smooth, linewidth=3, color='#2E86AB', alpha=0.9)
+
     ax.set_ylabel(ylabel, fontsize=12, fontweight='bold')
     
     # Remove x-axis labels
@@ -131,9 +178,17 @@ def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time
     # Style y-axis
     ax.tick_params(axis='y', labelsize=10)
     
-    # Center vertically
-    y_margin = (y.max() - y.min()) * 0.15 if y.max() != y.min() else 1.0
-    ax.set_ylim(y.min() - y_margin, y.max() + y_margin)
+    # Calculate limits based on both lines
+    all_y = y_smooth
+    if overlay_y is not None:
+        # We need to consider the smoothed overlay y for limits, but we calculated it inside the if block.
+        # Let's just use raw overlay_y for limits approximation or recalculate.
+        # For safety, let's use the raw values for limit calculation to ensure nothing is clipped.
+        all_y = np.concatenate([y, np.array(overlay_y)])
+        
+    y_min, y_max = all_y.min(), all_y.max()
+    y_margin = (y_max - y_min) * 0.15 if y_max != y_min else 1.0
+    ax.set_ylim(y_min - y_margin, y_max + y_margin)
     
     ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
     ax.spines['top'].set_visible(False)
@@ -151,60 +206,53 @@ async def main():
     output_dir = os.path.expanduser("~/code/e-paper/fetch_avg")
     os.makedirs(output_dir, exist_ok=True)
     
-    # --- Part 1: Today's Trends (7 AM to Now) ---
-    print("\n--- Generating Today's Trends ---")
+    # --- Fetch Data ---
+    print("Fetching data...")
     today_rows = await fetch_today_data()
-    
-    if today_rows:
-        # Convert timestamps to IST
-        timestamps = [utc_to_ist(row.timestamp) for row in today_rows]
-        temps = [row.temperature for row in today_rows]
-        humis = [row.humidity for row in today_rows]
-        press = [row.pressure for row in today_rows]
-        
-        create_smooth_plot(timestamps, temps, 'Temperature (°C)', 'today_temp.png', output_dir)
-        create_smooth_plot(timestamps, humis, 'Humidity (%)', 'today_humi.png', output_dir)
-        create_smooth_plot(timestamps, press, 'Pressure (hPa)', 'today_pressure.png', output_dir)
-    else:
-        print("No data found for today (since 7 AM IST).")
-
-    # --- Part 2: Monthly Average Trends (Hourly) ---
-    print("\n--- Generating Monthly Average Trends ---")
     month_rows = await fetch_last_30_days_data()
     
+    # Process Today's Data
+    today_timestamps = []
+    today_temps = []
+    today_humis = []
+    today_press = []
+    today_hours_float = [] # For overlay on hourly plot
+    
+    if today_rows:
+        for row in today_rows:
+            dt_ist = utc_to_ist(row.timestamp)
+            today_timestamps.append(dt_ist)
+            today_temps.append(row.temperature)
+            today_humis.append(row.humidity)
+            today_press.append(row.pressure)
+            # Convert to float hour (e.g. 7:30 -> 7.5)
+            today_hours_float.append(dt_ist.hour + dt_ist.minute/60 + dt_ist.second/3600)
+
+    # --- Part 1: Today's Trends (Smoother) ---
+    print("\n--- Generating Today's Trends ---")
+    if today_timestamps:
+        create_smooth_plot(today_timestamps, today_temps, 'Temperature (°C)', 'today_temp.png', output_dir, extra_smooth=True)
+        create_smooth_plot(today_timestamps, today_humis, 'Humidity (%)', 'today_humi.png', output_dir, extra_smooth=True)
+        create_smooth_plot(today_timestamps, today_press, 'Pressure (hPa)', 'today_pressure.png', output_dir, extra_smooth=True)
+    else:
+        print("No data found for today.")
+
+    # --- Part 2: Monthly Average Trends (Hourly) with Overlay ---
+    print("\n--- Generating Monthly Average Trends ---")
     if month_rows:
         hourly_avgs = get_hourly_average(month_rows)
         
-        # Filter for hours from 7 AM to current hour
+        # Determine time range (7 AM to Current Hour)
         now_ist = utc_to_ist(datetime.now(timezone.utc).replace(tzinfo=None))
         current_hour = now_ist.hour
         
-        # If current time is before 7 AM, show 7 AM to 23 PM (or just return empty if strictly 7am-now)
-        # Assuming the user wants 7 AM to Now. If Now < 7 AM, this range is empty.
-        # Let's handle the case where we might cross midnight or just show available hours.
-        # User said "7 am to to the time".
+        target_hours = list(range(7, current_hour + 1)) if current_hour >= 7 else []
         
-        target_hours = []
-        if current_hour >= 7:
-            target_hours = list(range(7, current_hour + 1))
-        else:
-            # It's early morning, maybe show yesterday's 7am-23pm? 
-            # Or just show nothing? Let's assume we show up to current hour even if it wraps?
-            # Actually, "7 am to current time" implies a single day span. 
-            # If it's 3 AM, 7 AM hasn't happened yet today.
-            # But this is "Monthly Avg". So we can show 7 AM to 3 AM (next day)?
-            # Let's stick to 7 AM to Current Hour. If Current Hour < 7, we probably shouldn't plot anything or plot full day?
-            # Let's assume standard day 7 AM to Current Hour. If < 7, maybe just 7-23?
-            # For safety, if current_hour < 7, let's just show 7-23 (full day avg) or warn.
-            # But usually this script runs during the day.
-            target_hours = list(range(7, current_hour + 1)) if current_hour >= 7 else []
-            
         if not target_hours and current_hour < 7:
-             print("Current time is before 7 AM. Showing full day averages (7-23).")
+             # Fallback if early morning
              target_hours = list(range(7, 24))
 
         if target_hours:
-            # Extract data for these hours
             plot_hours = []
             avg_temps = []
             avg_humis = []
@@ -218,10 +266,17 @@ async def main():
                     avg_press.append(hourly_avgs[h]['avg_pressure'])
             
             if plot_hours:
-                # Use hours as x-axis
-                create_smooth_plot(plot_hours, avg_temps, 'Avg Temp (°C)', 'month_avg_temp.png', output_dir, is_time=False)
-                create_smooth_plot(plot_hours, avg_humis, 'Avg Humidity (%)', 'month_avg_humi.png', output_dir, is_time=False)
-                create_smooth_plot(plot_hours, avg_press, 'Avg Pressure (hPa)', 'month_avg_pressure.png', output_dir, is_time=False)
+                # For overlay, we need to filter Today's data to match the X-axis range (approx)
+                # The plot function handles scaling, but let's ensure we pass the right data
+                
+                create_smooth_plot(plot_hours, avg_temps, 'Avg Temp (°C)', 'month_avg_temp.png', output_dir, 
+                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_temps, overlay_label='Today')
+                                 
+                create_smooth_plot(plot_hours, avg_humis, 'Avg Humidity (%)', 'month_avg_humi.png', output_dir, 
+                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_humis, overlay_label='Today')
+                                 
+                create_smooth_plot(plot_hours, avg_press, 'Avg Pressure (hPa)', 'month_avg_pressure.png', output_dir, 
+                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_press, overlay_label='Today')
             else:
                 print("No average data available for the target hours.")
         else:
