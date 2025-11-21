@@ -116,14 +116,46 @@ def smooth_data(x, y, sigma=2):
             return x, y_filtered
     return x, y_filtered
 
+def get_trend_text(y_values, unit):
+    """Determine trend text based on first and last values"""
+    if not len(y_values):
+        return ""
+    
+    start = y_values[0]
+    end = y_values[-1]
+    diff = end - start
+    
+    # Thresholds for "Stable"
+    thresholds = {
+        '°C': 1.0,
+        '%': 3.0,
+        'hPa': 1.0
+    }
+    thresh = thresholds.get(unit, 0.5)
+    
+    if abs(diff) < thresh:
+        return f"Stable"
+    elif diff > 0:
+        return f"Increased"
+    else:
+        return f"Decreased"
+
 def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time=True, 
-                      overlay_x=None, overlay_y=None, overlay_label=None, extra_smooth=False):
-    """Create a smooth, centered plot with optional overlay"""
+                      overlay_x=None, overlay_y=None, overlay_label=None, extra_smooth=False,
+                      unit=""):
+    """Create a smooth, centered plot with optional overlay, optimized for E-Paper"""
     if len(x_values) < 2:
         print(f"Not enough data points for {ylabel}")
         return
     
-    fig, ax = plt.subplots(figsize=(12, 6))
+    # E-Paper Resolution: 1072 x 1448
+    # Matplotlib uses inches. Let's assume 100 DPI for easy math, or just set figsize to match aspect ratio
+    # 1072 / 100 = 10.72 inches, 1448 / 100 = 14.48 inches
+    dpi = 100
+    fig_width = 1072 / dpi
+    fig_height = 1448 / dpi
+    
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height), dpi=dpi)
     
     # Prepare Main Data
     if is_time:
@@ -132,23 +164,17 @@ def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time
         x = np.array(x_values)
     y = np.array(y_values)
     
-    # Plot Main Data (e.g., Monthly Avg or Today)
-    # If extra_smooth is True (for Today's graphs), use higher sigma
-    sigma = 5 if extra_smooth else 1
-    
-    # If this is Monthly Avg (not time), we might not want too much smoothing on the few points we have
-    # But if it's Today's data (time), we want it "much much smoother"
-    
+    # Plot Main Data
+    sigma = 5 if extra_smooth else 2
     x_smooth, y_smooth = smooth_data(x, y, sigma=sigma)
     
-    # Main line style
-    # If overlay exists, Main is likely the "Average", so make it distinct (maybe dashed or lighter?)
-    # User said "overlay the today humidity... on monthly avg". 
-    # So Main = Monthly Avg, Overlay = Today.
+    # E-Paper Styling: High Contrast
+    # Main Line: Black
+    # Overlay Line: Dark Gray or Black (Dashed)
     
     if overlay_x is not None:
-        # Main Line (Monthly Avg) - Make it look like a baseline
-        ax.plot(x_smooth, y_smooth, linewidth=3, color='#A0A0A0', alpha=0.6, label='Monthly Avg')
+        # Main Line (Monthly Avg) - Dashed Dark Gray
+        ax.plot(x_smooth, y_smooth, linewidth=4, color='#404040', linestyle='--', label='Monthly Avg', alpha=0.8)
         
         # Prepare Overlay Data (Today)
         if is_time:
@@ -158,46 +184,64 @@ def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time
         oy = np.array(overlay_y)
         
         # Smooth Overlay Data
-        ox_smooth, oy_smooth = smooth_data(ox, oy, sigma=3) # Smooth today's data for overlay too
+        ox_smooth, oy_smooth = smooth_data(ox, oy, sigma=4)
         
-        # Plot Overlay Line (Today) - Make it pop
-        ax.plot(ox_smooth, oy_smooth, linewidth=3, color='#2E86AB', alpha=0.9, label='Today')
+        # Plot Overlay Line (Today) - Solid Black
+        ax.plot(ox_smooth, oy_smooth, linewidth=5, color='black', label='Today')
         
-        ax.legend(frameon=False)
+        # Legend - Large Text
+        ax.legend(frameon=False, fontsize=24, loc='upper left')
+        
+        # Trend Annotation (Based on Monthly Avg - Main Line)
+        trend = get_trend_text(y_values, unit)
+        if trend:
+            # Add text to plot
+            plt.text(0.5, 0.95, trend, transform=ax.transAxes, 
+                     horizontalalignment='center', verticalalignment='top',
+                     fontsize=40, fontweight='bold', color='black')
         
     else:
         # Single Plot (Today's Trend)
-        ax.plot(x_smooth, y_smooth, linewidth=3, color='#2E86AB', alpha=0.9)
+        ax.plot(x_smooth, y_smooth, linewidth=5, color='black')
 
-    ax.set_ylabel(ylabel, fontsize=12, fontweight='bold')
+    # Y-Label - Large Text
+    ax.set_ylabel(ylabel, fontsize=32, fontweight='bold', labelpad=20)
     
     # Remove x-axis labels
     ax.set_xticklabels([])
     ax.tick_params(axis='x', which='both', length=0)
     
-    # Style y-axis
-    ax.tick_params(axis='y', labelsize=10)
+    # Style y-axis - Large Ticks
+    ax.tick_params(axis='y', labelsize=24, length=10, width=2)
     
-    # Calculate limits based on both lines
+    # Center vertically
     all_y = y_smooth
     if overlay_y is not None:
-        # We need to consider the smoothed overlay y for limits, but we calculated it inside the if block.
-        # Let's just use raw overlay_y for limits approximation or recalculate.
-        # For safety, let's use the raw values for limit calculation to ensure nothing is clipped.
         all_y = np.concatenate([y, np.array(overlay_y)])
         
     y_min, y_max = all_y.min(), all_y.max()
-    y_margin = (y_max - y_min) * 0.15 if y_max != y_min else 1.0
+    y_margin = (y_max - y_min) * 0.2 if y_max != y_min else 1.0
     ax.set_ylim(y_min - y_margin, y_max + y_margin)
     
-    ax.grid(True, alpha=0.3, linestyle='--', linewidth=0.5)
+    # Grid - Minimal or None for E-Paper? 
+    # User said "clean y labels", "no horizontal labels".
+    # Let's keep a very light grid for reference, but make it sparse.
+    ax.grid(True, alpha=0.2, linestyle=':', linewidth=1, color='black')
+    
+    # Spines - Remove top/right, thicken left/bottom
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_linewidth(2)
+    ax.spines['bottom'].set_linewidth(2)
     
     plt.tight_layout()
     
     output_path = os.path.join(output_dir, filename)
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.savefig(output_path, dpi=dpi, bbox_inches='tight') # bbox_inches='tight' might change dimensions slightly, but keeps content.
+    # If exact 1072x1448 is STRICT, we should avoid bbox_inches='tight' and manually adjust subplot params.
+    # But usually 'tight' is safer for not cutting off large text.
+    # Let's try to respect the figure size.
+    
     plt.close()
     print(f"✓ Saved {filename}")
 
@@ -216,7 +260,7 @@ async def main():
     today_temps = []
     today_humis = []
     today_press = []
-    today_hours_float = [] # For overlay on hourly plot
+    today_hours_float = [] 
     
     if today_rows:
         for row in today_rows:
@@ -225,7 +269,6 @@ async def main():
             today_temps.append(row.temperature)
             today_humis.append(row.humidity)
             today_press.append(row.pressure)
-            # Convert to float hour (e.g. 7:30 -> 7.5)
             today_hours_float.append(dt_ist.hour + dt_ist.minute/60 + dt_ist.second/3600)
 
     # --- Part 1: Today's Trends (Smoother) ---
@@ -242,14 +285,12 @@ async def main():
     if month_rows:
         hourly_avgs = get_hourly_average(month_rows)
         
-        # Determine time range (7 AM to Current Hour)
         now_ist = utc_to_ist(datetime.now(timezone.utc).replace(tzinfo=None))
         current_hour = now_ist.hour
         
         target_hours = list(range(7, current_hour + 1)) if current_hour >= 7 else []
         
         if not target_hours and current_hour < 7:
-             # Fallback if early morning
              target_hours = list(range(7, 24))
 
         if target_hours:
@@ -266,17 +307,14 @@ async def main():
                     avg_press.append(hourly_avgs[h]['avg_pressure'])
             
             if plot_hours:
-                # For overlay, we need to filter Today's data to match the X-axis range (approx)
-                # The plot function handles scaling, but let's ensure we pass the right data
-                
                 create_smooth_plot(plot_hours, avg_temps, 'Avg Temp (°C)', 'month_avg_temp.png', output_dir, 
-                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_temps, overlay_label='Today')
+                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_temps, overlay_label='Today', unit='°C')
                                  
                 create_smooth_plot(plot_hours, avg_humis, 'Avg Humidity (%)', 'month_avg_humi.png', output_dir, 
-                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_humis, overlay_label='Today')
+                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_humis, overlay_label='Today', unit='%')
                                  
                 create_smooth_plot(plot_hours, avg_press, 'Avg Pressure (hPa)', 'month_avg_pressure.png', output_dir, 
-                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_press, overlay_label='Today')
+                                 is_time=False, overlay_x=today_hours_float, overlay_y=today_press, overlay_label='Today', unit='hPa')
             else:
                 print("No average data available for the target hours.")
         else:
