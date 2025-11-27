@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 import redis from "redis";
@@ -35,7 +38,7 @@ app.get("/pm25/avg", async (req, res) => {
       },
     });
 
-    res.json({ avg_pm25: result._avg.pm25 || 0 });
+    res.json({ avg_pm25: result._avg.pm25 ? parseFloat(result._avg.pm25.toFixed(2)) : 0 });
   } catch (error) {
     console.error("Error fetching PM2.5 average:", error);
     res.status(500).json({ error: "Failed to fetch PM2.5 average" });
