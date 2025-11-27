@@ -240,7 +240,7 @@ def create_smooth_plot(x_values, y_values, ylabel, filename, output_dir, is_time
 
 async def main():
     # Output directory
-    output_dir = os.path.expanduser("~/code/e-paper/fetch_avg")
+    output_dir = os.path.expanduser("~/Desktop/Code/Clock/fetch_avg/plots")
     os.makedirs(output_dir, exist_ok=True)
     
     # --- Fetch Data ---
