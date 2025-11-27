@@ -26,3 +26,8 @@ model weather_db_v2{
    humidity    Float
    pressure    Float
 }
+model pm25{
+  id String @id @default(uuid())
+  timestamp DateTime @default(now()) @db.Timestamptz(6)
+  pm2.5 Float
+}
