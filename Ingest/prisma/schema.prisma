@@ -30,4 +30,7 @@ model pm25{
   id String @id @default(uuid())
   timestamp DateTime @default(now()) @db.Timestamptz(6)
   pm25 Float
+
+  @@index([pm25])
+  @@index([timestamp])
 }
