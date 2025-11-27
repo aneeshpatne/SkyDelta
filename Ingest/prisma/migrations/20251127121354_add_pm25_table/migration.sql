@@ -1,0 +1,8 @@
+-- CreateTable
+CREATE TABLE "pm25" (
+    "id" TEXT NOT NULL,
+    "timestamp" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "pm25" DOUBLE PRECISION NOT NULL,
+
+    CONSTRAINT "pm25_pkey" PRIMARY KEY ("id")
+);

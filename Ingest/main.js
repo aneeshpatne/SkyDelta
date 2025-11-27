@@ -19,10 +19,16 @@ async function fetchAndStorePollution() {
     await prisma.pm25.create({
       data: {
         timestamp: istTime,
-        "pm2.5": data.pm25,
+        pm25: data.pm25,
       },
     });
-  } catch (e) {}
+    console.info(
+      "[FETCH] Pollution Data Logged at",
+      istTime.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })
+    );
+  } catch (e) {
+    console.error("[FETCH] Fetching Failed", e);
+  }
 }
 async function fetchAndStore() {
   try {
