@@ -42,6 +42,28 @@ app.get("/pm25/avg", async (req, res) => {
   }
 });
 
+app.get("/pm25/avg/15min", async (req, res) => {
+  try {
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+
+    const result = await prisma.pm25.aggregate({
+      _avg: {
+        pm25: true,
+      },
+      where: {
+        timestamp: {
+          gt: fifteenMinutesAgo,
+        },
+      },
+    });
+
+    res.json({ avg_pm25: result._avg.pm25 || 0 });
+  } catch (error) {
+    console.error("Error fetching PM2.5 15-min average:", error);
+    res.status(500).json({ error: "Failed to fetch PM2.5 15-min average" });
+  }
+});
+
 app.listen(8008, () => {
   console.log("Server Running");
 });
