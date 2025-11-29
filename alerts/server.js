@@ -64,6 +64,15 @@ app.get("/pm25/avg/15min", async (req, res) => {
   }
 });
 
+app.get("/aqi/alert", async (req, res) => {
+  const color = await client.get("aqi-alert-color");
+  const remark = await client.get("aqi-alert-remark");
+  res.json({
+    color: color || "green",
+    remark: remark || "Air quality normal",
+  });
+});
+
 app.listen(8008, () => {
   console.log("Server Running");
 });
