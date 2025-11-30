@@ -144,14 +144,14 @@ Analyze the changes and current conditions to assess if there's any significant 
         schema: z.object({
           alert: z.object({
             color: z.string(),
-            remarks: z.string().describe("Can be maximum of 5 words only."),
+            remarks: z.string().describe("Can be maximum of 3 words only."),
           }),
         }),
         prompt: `You are an air quality monitoring system. Based on the following PM2.5 data from the last 15 minutes, determine an appropriate alert color: green (good air quality, PM2.5 0-12), yellow (moderate, PM2.5 12-35), orange (unhealthy for sensitive groups, PM2.5 35-55), or red (unhealthy, PM2.5 > 55).
 
 Current PM2.5 Average (last 15 minutes): ${avgPm25} µg/m³
 
-Analyze the air quality and provide an appropriate alert color and a brief remark (max 5 words) about the air quality status.`,
+Analyze the air quality and provide an appropriate alert color and a brief remark (max 3 words) about the air quality status.`,
       });
       console.log("AQI Alert:", object.alert.color);
       console.log("AQI Remark:", object.alert.remarks);
